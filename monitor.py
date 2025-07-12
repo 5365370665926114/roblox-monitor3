@@ -1,7 +1,7 @@
 import requests
 from datetime import datetime
 
-# CONFIGURAÇÕES
+# C ONFIGURAÇÕES
 roblox_user_id = 1095627406  # Substitua pelo ID do jogador
 webhook_url = 'https://discord.com/api/webhooks/1393626937070456842/eRm7z8Rucy_YBDeIbE0SpGf6jY8TdNjEuTlUbbyBREW0K0wtvM5X4KHLARdZfLEL3GtE'  # Cole aqui seu webhook
 state_file = 'last_status.txt'
