@@ -1,4 +1,4 @@
-name: DPL InnerTubeX 0.5.1 Artifact Cache
+name: DPL InnerTubeX 0.5.1 AAR
 
 on:
   push:
@@ -8,52 +8,25 @@ on:
       - .github/workflows/dpl-toolchain.yml
 
 jobs:
-  cache:
+  fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Clone exact Metrolist base and pin InnerTubeX 0.5.1
+      - name: Download exact InnerTubeX Android AAR
         shell: bash
         run: |
-          git clone https://github.com/MetrolistGroup/Metrolist.git "$RUNNER_TEMP/metrolist"
-          cd "$RUNNER_TEMP/metrolist"
-          git checkout 665ad436803ba6d3983c245f8f2aaaa45c9e3eaa
-          sed -i 's/innertubex = "v0.5.2"/innertubex = "v0.5.1"/' gradle/libs.versions.toml
-          cat >> app/build.gradle.kts <<'EOF'
+          set -euxo pipefail
+          URL='https://jitpack.io/com/github/MetrolistGroup/innertubex/innertubex-android/v0.5.1/innertubex-android-v0.5.1.aar'
+          curl -fL --retry 3 "$URL" -o "$RUNNER_TEMP/innertubex-android-v0.5.1.aar"
+          test -s "$RUNNER_TEMP/innertubex-android-v0.5.1.aar"
+          file "$RUNNER_TEMP/innertubex-android-v0.5.1.aar"
+          sha1sum "$RUNNER_TEMP/innertubex-android-v0.5.1.aar"
+          ls -lh "$RUNNER_TEMP/innertubex-android-v0.5.1.aar"
 
-          tasks.register("resolveDplFossClasspath") {
-              doLast {
-                  configurations.getByName("fossDebugCompileClasspath").resolve()
-              }
-          }
-          EOF
-          chmod +x gradlew
-
-      - name: Materialize compile artifacts
-        shell: bash
-        run: |
-          cd "$RUNNER_TEMP/metrolist"
-          ./gradlew :app:resolveDplFossClasspath --no-configuration-cache --no-daemon --console=plain
-
-      - name: Pack InnerTubeX 0.5.1 cache entries
-        shell: bash
-        run: |
-          mkdir -p "$RUNNER_TEMP/pack/files-2.1" "$RUNNER_TEMP/pack/descriptors"
-          cp -a "$HOME/.gradle/caches/modules-2/files-2.1/com.github.MetrolistGroup.innertubex" "$RUNNER_TEMP/pack/files-2.1/"
-          META=$(find "$HOME/.gradle/caches/modules-2" -maxdepth 1 -type d -name 'metadata-*' | head -1)
-          cp -a "$META/descriptors/com.github.MetrolistGroup.innertubex" "$RUNNER_TEMP/pack/descriptors/"
-          find "$RUNNER_TEMP/pack" -type f -maxdepth 12 -printf '%P %s\n'
-
-      - name: Upload InnerTubeX cache
+      - name: Upload AAR
         uses: actions/upload-artifact@v4
         with:
-          name: innertubex-v0.5.1-full-cache
-          path: ${{ runner.temp }}/pack
-          compression-level: 6
+          name: innertubex-android-v0.5.1-aar
+          path: ${{ runner.temp }}/innertubex-android-v0.5.1.aar
+          compression-level: 0
           retention-days: 1
