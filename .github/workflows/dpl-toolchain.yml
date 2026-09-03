@@ -21,11 +21,11 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android API 37
+      - name: Install Android API 37.0
         shell: bash
         run: |
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-37" "build-tools;36.0.0" "platform-tools"
+          sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "platform-tools"
 
       - name: Clone exact Metrolist base
         shell: bash
@@ -46,8 +46,8 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/dpl-offline/android-sdk/platforms" "$RUNNER_TEMP/dpl-offline/android-sdk/build-tools" "$RUNNER_TEMP/dpl-offline/android-sdk/platform-tools"
           cp -a "$HOME/.gradle" "$RUNNER_TEMP/dpl-offline/gradle-home"
-          cp -a "$ANDROID_HOME/platforms/android-37" "$RUNNER_TEMP/dpl-offline/android-sdk/platforms/"
-          cp -a "$ANDROID_HOME/build-tools/36.0.0" "$RUNNER_TEMP/dpl-offline/android-sdk/build-tools/"
+          cp -a "$ANDROID_HOME/platforms/android-37.0" "$RUNNER_TEMP/dpl-offline/android-sdk/platforms/"
+          cp -a "$ANDROID_HOME/build-tools/37.0.0" "$RUNNER_TEMP/dpl-offline/android-sdk/build-tools/"
           cp -a "$ANDROID_HOME/platform-tools/." "$RUNNER_TEMP/dpl-offline/android-sdk/platform-tools/"
           tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/dpl-offline-toolchain.tar.gz" dpl-offline
 
