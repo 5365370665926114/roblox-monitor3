@@ -27,6 +27,12 @@ jobs:
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "platform-tools"
 
+      - name: Create debug keystore
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.android"
+          keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+
       - name: Clone exact Metrolist base
         shell: bash
         run: |
@@ -42,16 +48,22 @@ jobs:
           ./gradlew :app:assembleFossDebug --stacktrace --no-daemon
 
       - name: Pack offline build environment
+        if: always()
         shell: bash
         run: |
-          mkdir -p "$RUNNER_TEMP/dpl-offline/android-sdk/platforms" "$RUNNER_TEMP/dpl-offline/android-sdk/build-tools" "$RUNNER_TEMP/dpl-offline/android-sdk/platform-tools"
+          rm -rf "$HOME/.gradle/daemon" "$HOME/.gradle/native" "$HOME/.gradle/notifications" "$HOME/.gradle/workers" || true
+          mkdir -p "$RUNNER_TEMP/dpl-offline/android-sdk/platforms" "$RUNNER_TEMP/dpl-offline/android-sdk/build-tools" "$RUNNER_TEMP/dpl-offline/android-sdk/platform-tools" "$RUNNER_TEMP/dpl-offline/android-sdk/licenses"
           cp -a "$HOME/.gradle" "$RUNNER_TEMP/dpl-offline/gradle-home"
           cp -a "$ANDROID_HOME/platforms/android-37.0" "$RUNNER_TEMP/dpl-offline/android-sdk/platforms/"
           cp -a "$ANDROID_HOME/build-tools/37.0.0" "$RUNNER_TEMP/dpl-offline/android-sdk/build-tools/"
           cp -a "$ANDROID_HOME/platform-tools/." "$RUNNER_TEMP/dpl-offline/android-sdk/platform-tools/"
+          cp -a "$ANDROID_HOME/licenses/." "$RUNNER_TEMP/dpl-offline/android-sdk/licenses/" || true
+          du -sh "$RUNNER_TEMP/dpl-offline" "$RUNNER_TEMP/dpl-offline/gradle-home" || true
           tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/dpl-offline-toolchain.tar.gz" dpl-offline
+          ls -lh "$RUNNER_TEMP/dpl-offline-toolchain.tar.gz"
 
       - name: Upload offline toolchain
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dpl-offline-toolchain
