@@ -1,4 +1,4 @@
-name: DPL InnerTubeX 0.5.1 Cache
+name: DPL InnerTubeX 0.5.1 Artifact Cache
 
 on:
   push:
@@ -18,36 +18,42 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Clone exact Metrolist base
+      - name: Clone exact Metrolist base and pin InnerTubeX 0.5.1
         shell: bash
         run: |
           git clone https://github.com/MetrolistGroup/Metrolist.git "$RUNNER_TEMP/metrolist"
           cd "$RUNNER_TEMP/metrolist"
           git checkout 665ad436803ba6d3983c245f8f2aaaa45c9e3eaa
           sed -i 's/innertubex = "v0.5.2"/innertubex = "v0.5.1"/' gradle/libs.versions.toml
-          grep 'innertubex =' gradle/libs.versions.toml
+          cat >> app/build.gradle.kts <<'EOF'
+
+          tasks.register("resolveDplFossClasspath") {
+              doLast {
+                  configurations.getByName("fossDebugCompileClasspath").resolve()
+              }
+          }
+          EOF
           chmod +x gradlew
 
-      - name: Resolve InnerTubeX 0.5.1 and compile classpath
+      - name: Materialize compile artifacts
         shell: bash
         run: |
           cd "$RUNNER_TEMP/metrolist"
-          ./gradlew :app:dependencies --configuration fossDebugCompileClasspath --no-daemon --console=plain
+          ./gradlew :app:resolveDplFossClasspath --no-daemon --console=plain
 
-      - name: Pack InnerTubeX cache entries
+      - name: Pack InnerTubeX 0.5.1 cache entries
         shell: bash
         run: |
           mkdir -p "$RUNNER_TEMP/pack/files-2.1" "$RUNNER_TEMP/pack/descriptors"
           cp -a "$HOME/.gradle/caches/modules-2/files-2.1/com.github.MetrolistGroup.innertubex" "$RUNNER_TEMP/pack/files-2.1/"
           META=$(find "$HOME/.gradle/caches/modules-2" -maxdepth 1 -type d -name 'metadata-*' | head -1)
-          echo "META=$META"
           cp -a "$META/descriptors/com.github.MetrolistGroup.innertubex" "$RUNNER_TEMP/pack/descriptors/"
-          find "$RUNNER_TEMP/pack" -type f -maxdepth 10 -printf '%P %s\n'
+          find "$RUNNER_TEMP/pack" -type f -maxdepth 12 -printf '%P %s\n'
 
       - name: Upload InnerTubeX cache
         uses: actions/upload-artifact@v4
         with:
-          name: innertubex-v0.5.1-gradle-cache
+          name: innertubex-v0.5.1-full-cache
           path: ${{ runner.temp }}/pack
           compression-level: 6
           retention-days: 1
