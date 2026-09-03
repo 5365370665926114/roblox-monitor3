@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           cd "$RUNNER_TEMP/metrolist"
-          ./gradlew :app:resolveDplFossClasspath --no-daemon --console=plain
+          ./gradlew :app:resolveDplFossClasspath --no-configuration-cache --no-daemon --console=plain
 
       - name: Pack InnerTubeX 0.5.1 cache entries
         shell: bash
