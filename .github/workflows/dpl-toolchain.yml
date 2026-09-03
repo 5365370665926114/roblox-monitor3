@@ -1,4 +1,4 @@
-name: DPL Toolchain Split
+name: DPL Build Tools 36
 
 on:
   push:
@@ -7,52 +7,26 @@ on:
     paths:
       - .github/workflows/dpl-toolchain.yml
 
-permissions:
-  actions: read
-  contents: read
-
 jobs:
-  split:
+  pack:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
-      - name: Download compiled toolchain artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dpl-offline-toolchain
-          path: ${{ runner.temp }}/input
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          run-id: 33714465757
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Split into connector-sized parts
+      - name: Install Build Tools 36.0.0
         shell: bash
         run: |
-          ls -lh "$RUNNER_TEMP/input"
-          mkdir -p "$RUNNER_TEMP/parts"
-          split -b 400M -d -a 1 "$RUNNER_TEMP/input/dpl-offline-toolchain.tar.gz" "$RUNNER_TEMP/parts/part-"
-          ls -lh "$RUNNER_TEMP/parts"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "build-tools;36.0.0"
+          test -x "$ANDROID_HOME/build-tools/36.0.0/aapt2"
+          du -sh "$ANDROID_HOME/build-tools/36.0.0"
 
-      - name: Upload part 0
+      - name: Upload Build Tools 36.0.0
         uses: actions/upload-artifact@v4
         with:
-          name: dpl-toolchain-part-0
-          path: ${{ runner.temp }}/parts/part-0
-          compression-level: 0
-          retention-days: 1
-
-      - name: Upload part 1
-        uses: actions/upload-artifact@v4
-        with:
-          name: dpl-toolchain-part-1
-          path: ${{ runner.temp }}/parts/part-1
-          compression-level: 0
-          retention-days: 1
-
-      - name: Upload part 2
-        uses: actions/upload-artifact@v4
-        with:
-          name: dpl-toolchain-part-2
-          path: ${{ runner.temp }}/parts/part-2
-          compression-level: 0
+          name: android-build-tools-36.0.0
+          path: ${{ env.ANDROID_HOME }}/build-tools/36.0.0
+          compression-level: 6
           retention-days: 1
