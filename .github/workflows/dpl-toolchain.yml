@@ -1,4 +1,4 @@
-name: DPL Android Toolchain
+name: DPL Toolchain Split
 
 on:
   push:
@@ -7,66 +7,52 @@ on:
     paths:
       - .github/workflows/dpl-toolchain.yml
 
+permissions:
+  actions: read
+  contents: read
+
 jobs:
-  prepare:
+  split:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android API 37.0
-        shell: bash
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "platform-tools"
-
-      - name: Create debug keystore
-        shell: bash
-        run: |
-          mkdir -p "$HOME/.android"
-          keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-
-      - name: Clone exact Metrolist base
-        shell: bash
-        run: |
-          git clone https://github.com/MetrolistGroup/Metrolist.git "$RUNNER_TEMP/metrolist"
-          cd "$RUNNER_TEMP/metrolist"
-          git checkout 665ad436803ba6d3983c245f8f2aaaa45c9e3eaa
-          chmod +x gradlew
-
-      - name: Warm Gradle and Android dependencies
-        shell: bash
-        run: |
-          cd "$RUNNER_TEMP/metrolist"
-          ./gradlew :app:assembleFossDebug --stacktrace --no-daemon
-
-      - name: Pack offline build environment
-        if: always()
-        shell: bash
-        run: |
-          rm -rf "$HOME/.gradle/daemon" "$HOME/.gradle/native" "$HOME/.gradle/notifications" "$HOME/.gradle/workers" || true
-          mkdir -p "$RUNNER_TEMP/dpl-offline/android-sdk/platforms" "$RUNNER_TEMP/dpl-offline/android-sdk/build-tools" "$RUNNER_TEMP/dpl-offline/android-sdk/platform-tools" "$RUNNER_TEMP/dpl-offline/android-sdk/licenses"
-          cp -a "$HOME/.gradle" "$RUNNER_TEMP/dpl-offline/gradle-home"
-          cp -a "$ANDROID_HOME/platforms/android-37.0" "$RUNNER_TEMP/dpl-offline/android-sdk/platforms/"
-          cp -a "$ANDROID_HOME/build-tools/37.0.0" "$RUNNER_TEMP/dpl-offline/android-sdk/build-tools/"
-          cp -a "$ANDROID_HOME/platform-tools/." "$RUNNER_TEMP/dpl-offline/android-sdk/platform-tools/"
-          cp -a "$ANDROID_HOME/licenses/." "$RUNNER_TEMP/dpl-offline/android-sdk/licenses/" || true
-          du -sh "$RUNNER_TEMP/dpl-offline" "$RUNNER_TEMP/dpl-offline/gradle-home" || true
-          tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/dpl-offline-toolchain.tar.gz" dpl-offline
-          ls -lh "$RUNNER_TEMP/dpl-offline-toolchain.tar.gz"
-
-      - name: Upload offline toolchain
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Download compiled toolchain artifact
+        uses: actions/download-artifact@v4
         with:
           name: dpl-offline-toolchain
-          path: ${{ runner.temp }}/dpl-offline-toolchain.tar.gz
+          path: ${{ runner.temp }}/input
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 33714465757
+
+      - name: Split into connector-sized parts
+        shell: bash
+        run: |
+          ls -lh "$RUNNER_TEMP/input"
+          mkdir -p "$RUNNER_TEMP/parts"
+          split -b 400M -d -a 1 "$RUNNER_TEMP/input/dpl-offline-toolchain.tar.gz" "$RUNNER_TEMP/parts/part-"
+          ls -lh "$RUNNER_TEMP/parts"
+
+      - name: Upload part 0
+        uses: actions/upload-artifact@v4
+        with:
+          name: dpl-toolchain-part-0
+          path: ${{ runner.temp }}/parts/part-0
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload part 1
+        uses: actions/upload-artifact@v4
+        with:
+          name: dpl-toolchain-part-1
+          path: ${{ runner.temp }}/parts/part-1
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload part 2
+        uses: actions/upload-artifact@v4
+        with:
+          name: dpl-toolchain-part-2
+          path: ${{ runner.temp }}/parts/part-2
           compression-level: 0
           retention-days: 1
