@@ -1,0 +1,57 @@
+name: DPL Android Toolchain
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/dpl-toolchain.yml
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Android API 37
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-37" "build-tools;36.0.0" "platform-tools"
+
+      - name: Clone exact Metrolist base
+        shell: bash
+        run: |
+          git clone https://github.com/MetrolistGroup/Metrolist.git "$RUNNER_TEMP/metrolist"
+          cd "$RUNNER_TEMP/metrolist"
+          git checkout 665ad436803ba6d3983c245f8f2aaaa45c9e3eaa
+          chmod +x gradlew
+
+      - name: Warm Gradle and Android dependencies
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP/metrolist"
+          ./gradlew :app:assembleFossDebug --stacktrace --no-daemon
+
+      - name: Pack offline build environment
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/dpl-offline/android-sdk/platforms" "$RUNNER_TEMP/dpl-offline/android-sdk/build-tools" "$RUNNER_TEMP/dpl-offline/android-sdk/platform-tools"
+          cp -a "$HOME/.gradle" "$RUNNER_TEMP/dpl-offline/gradle-home"
+          cp -a "$ANDROID_HOME/platforms/android-37" "$RUNNER_TEMP/dpl-offline/android-sdk/platforms/"
+          cp -a "$ANDROID_HOME/build-tools/36.0.0" "$RUNNER_TEMP/dpl-offline/android-sdk/build-tools/"
+          cp -a "$ANDROID_HOME/platform-tools/." "$RUNNER_TEMP/dpl-offline/android-sdk/platform-tools/"
+          tar -C "$RUNNER_TEMP" -czf "$RUNNER_TEMP/dpl-offline-toolchain.tar.gz" dpl-offline
+
+      - name: Upload offline toolchain
+        uses: actions/upload-artifact@v4
+        with:
+          name: dpl-offline-toolchain
+          path: ${{ runner.temp }}/dpl-offline-toolchain.tar.gz
+          compression-level: 0
+          retention-days: 1
